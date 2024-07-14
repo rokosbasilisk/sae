@@ -10,6 +10,8 @@ from simple_parsing import field, parse
 from transformers import (
     AutoModel, AutoTokenizer, BitsAndBytesConfig, PreTrainedModel,
 )
+from tqdm import tqdm 
+import numpy as np
 
 from .data import chunk_and_tokenize
 from .trainer import SaeTrainer, TrainConfig
@@ -79,9 +81,9 @@ def load_artifacts(args: RunConfig, rank: int) -> tuple[PreTrainedModel, Dataset
 
     try:
         if args.dataset == 'commaai/commavq': 
-            dataset = load_dataset(dataset_name, split='0', trust_remote_code=True)
+            dataset = load_dataset(args.dataset, split='0', trust_remote_code=True)
             tokenized_sequences = process_and_tokenize(dataset)
-            dataset = Dataset.from_dict({"input_ids": tokenized_sequences})
+            dataset = Dataset.from_dict({"input_ids": tokenized_sequences}).with_format("torch")
 
         else:
             dataset = load_dataset(
