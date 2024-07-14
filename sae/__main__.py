@@ -49,6 +49,12 @@ class RunConfig(TrainConfig):
     attn_implementation: str = "sdpa"
     """Which implementation to use for attention in `transformers`. Pythia models require "eager"."""
 
+def process_and_tokenize(dataset):
+    token_sequences = []
+    for data in tqdm(dataset):
+        frames = np.load(data['path']).astype(np.int16).reshape(-1, 128)
+        for frame in frames: token_sequences.append(list(frame))
+    return token_sequences
 
 def load_artifacts(args: RunConfig, rank: int) -> tuple[PreTrainedModel, Dataset]:
     if args.load_in_8bit:
@@ -72,12 +78,18 @@ def load_artifacts(args: RunConfig, rank: int) -> tuple[PreTrainedModel, Dataset
     )
 
     try:
-        dataset = load_dataset(
-            args.dataset,
-            split=args.split,
-            # TODO: Maybe set this to False by default? But RPJ requires it.
-            trust_remote_code=True,
-        )
+        if args.dataset == 'commaai/commavq': 
+            dataset = load_dataset(dataset_name, split='0', trust_remote_code=True)
+            tokenized_sequences = process_and_tokenize(dataset)
+            dataset = Dataset.from_dict({"input_ids": tokenized_sequences})
+
+        else:
+            dataset = load_dataset(
+                args.dataset,
+                split=args.split,
+                # TODO: Maybe set this to False by default? But RPJ requires it.
+                trust_remote_code=True,
+            )
     except ValueError as e:
         # Automatically use load_from_disk if appropriate
         if "load_from_disk" in str(e):
